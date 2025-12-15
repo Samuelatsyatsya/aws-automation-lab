@@ -1,0 +1,24 @@
+2025-12-15 14:10:33 : EC2 Automation Script Started
+2025-12-15 14:10:35 : ERROR: AWS credentials not configured or invalid.
+2025-12-15 14:16:46 : EC2 Automation Script Started
+2025-12-15 14:16:47 : ERROR: AWS credentials not configured or invalid.
+2025-12-15 14:30:23 : EC2 Automation Script Started
+2025-12-15 14:30:25 : ERROR: AWS credentials not configured or invalid.
+2025-12-15 14:31:26 : EC2 Automation Script Started
+2025-12-15 14:31:27 : ERROR: AWS credentials not configured or invalid.
+2025-12-15 14:32:19 : EC2 Automation Script Started
+2025-12-15 14:32:20 : ERROR: AWS credentials not configured or invalid.
+2025-12-15 15:19:39 : EC2 Automation Script Started
+2025-12-15 15:19:41 : ERROR: AWS credentials not configured or invalid.
+2025-12-15 15:22:26 : EC2 Automation Script Started
+2025-12-15 15:22:27 : AWS CLI and credentials verified.
+2025-12-15 15:22:29 : Creating EC2 key pair: automationlab-key-1765812146
+2025-12-15 15:22:31 : Key pair saved as automationlab-key-1765812146.pem
+2025-12-15 15:22:31 : Launching EC2 instance...
+2025-12-15 15:22:33 : Waiting for EC2 instance to enter running state...
+2025-12-15 15:52:21 : EC2 Automation Script Started
+2025-12-15 15:52:23 : AWS CLI and credentials verified.
+2025-12-15 15:52:24 : Creating EC2 key pair: automationlab-key-1765813941
+2025-12-15 15:52:26 : Key pair saved as automationlab-key-1765813941.pem
+2025-12-15 15:52:26 : Launching EC2 instance...
+2025-12-15 15:52:29 : Waiting for EC2 instance to enter running state...
