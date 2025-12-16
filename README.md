@@ -43,17 +43,19 @@ Automation ensures **consistency, efficiency, and security best practices** for 
 
 ## Setup and Execution
 
-1. **Clone the repository**:
+**Clone the repository**:
 ```bash
 git clone <repository_url>
+```
+
+
+**Move into the directory**:
+```bash
 cd Resource_Creation
 ```
+
 Ensure prerequisites:
-
-AWS CLI v2 installed and configured
-
-jq installed 
-
+AWS CLI v2 installed and configured, jq installed 
 ```bash
 (sudo apt-get install -y jq)
 ```
@@ -62,48 +64,45 @@ jq installed
 Make scripts executable (optional):
 
 ```bash
-Copy code
 chmod +x *.sh
-Run all scripts in order:
 ```
 
+**Run all scripts in order:**
 ```bash
-Copy code
 ./run_all.sh
 ```
-Clean up resources:
+**Clean up resources:**
 
 ```bash
-Copy code
 ./cleanup_resources.sh
 ```
 
 ## Challenges Faced and Solutions
-EC2 Instance ID parsing issue
+**EC2 Instance ID parsing issue**
 
 Problem: Previous scripts were including log messages in the Instance ID
 
 Solution: Separated the run-instances output using --query 'Instances[0].InstanceId' --output text
 
-S3 bucket deletion failure
+**S3 bucket deletion failure**
 
 Problem: Versioned S3 buckets caused BucketNotEmpty errors
 
 Solution: Implemented deletion of all object versions and delete markers using jq
 
-Script execution permissions
+**Script execution permissions**
 
 Problem: Newly created scripts were not executable
 
 Solution: run_all.sh automatically checks and sets executable permissions
 
-AWS credential validation
+**AWS credential validation**
 
 Problem: Scripts failed when AWS credentials were missing or invalid
 
 Solution: Added a check_prerequisites function in each script
 
-Logging
+**Logging**
 Scripts log messages with timestamps to both terminal and log files:
 
 create_ec2.log, create_s3_bucket.log, create_security_group.log, cleanup_resources.log, run_all.log
