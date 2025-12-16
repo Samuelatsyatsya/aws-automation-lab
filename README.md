@@ -47,30 +47,38 @@ Automation ensures **consistency, efficiency, and security best practices** for 
 ```bash
 git clone <repository_url>
 cd Resource_Creation
+```
 Ensure prerequisites:
 
 AWS CLI v2 installed and configured
 
-jq installed (sudo apt-get install -y jq)
+jq installed 
 
-Bash shell
+```bash
+(sudo apt-get install -y jq)
+```
+
 
 Make scripts executable (optional):
 
-bash
+```bash
 Copy code
 chmod +x *.sh
 Run all scripts in order:
+```
 
-bash
+```bash
 Copy code
 ./run_all.sh
+```
 Clean up resources:
 
-bash
+```bash
 Copy code
 ./cleanup_resources.sh
-Challenges Faced and Solutions
+```
+
+## Challenges Faced and Solutions
 EC2 Instance ID parsing issue
 
 Problem: Previous scripts were including log messages in the Instance ID
