@@ -114,4 +114,5 @@ Scripts log messages with timestamps to both terminal and log files:
 create_ec2.log, create_s3_bucket.log, create_security_group.log, cleanup_resources.log, run_all.log
 
 Author
+
 Samuel Atsyatsya
