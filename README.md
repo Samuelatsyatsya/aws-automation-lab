@@ -26,6 +26,8 @@ Automation ensures **consistency, efficiency, and security best practices** for 
 - Tags the instance with `Project=AutomationLab`  
 - Outputs the **Instance ID** and **Public IP**  
 
+![alt text](ec2_only_creation.png)
+
 ### 4. `run_all.sh`
 - Orchestrates all creation scripts sequentially  
 - Automatically sets execution permission if missing  
@@ -71,11 +73,15 @@ chmod +x *.sh
 ```bash
 ./run_all.sh
 ```
+![alt text](runAll_resource_creation.png)
+
+
 **Clean up resources:**
 
 ```bash
 ./cleanup_resources.sh
 ```
+![alt text](resource_cleanup.png)
 
 # Logging
 Scripts log messages with timestamps to both terminal and log files:
