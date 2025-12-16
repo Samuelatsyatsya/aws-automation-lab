@@ -10,11 +10,14 @@ TAG_PROJECT="AutomationLab"
 
 # LOGGING FUNCTION
 
+# log() {
+#   # Logs messages with timestamp to both terminal and log file
+#   echo "$(date '+%Y-%m-%d %H:%M:%S') : $1" | tee -a "$LOG_FILE"
+# }
 log() {
-  # Logs messages with timestamp to both terminal and log file
-  echo "$(date '+%Y-%m-%d %H:%M:%S') : $1" | tee -a "$LOG_FILE"
+  # Logs messages with timestamp to terminal and log file (stderr-safe)
+  echo "$(date '+%Y-%m-%d %H:%M:%S') : $1" | tee -a "$LOG_FILE" >&2
 }
-
 
 check_prerequisites() {
   # Ensure AWS CLI is installed
