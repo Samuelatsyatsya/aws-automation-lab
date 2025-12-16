@@ -1,0 +1,25 @@
+
+# AWS credentials & config
+.aws/
+aws/
+credentials
+config
+
+
+# SSH / EC2 key pairs
+*.pem
+
+# files
+*.log
+*.txt
+*.zip
+
+# Temporary / backup files
+*~
+*.swp
+*.tmp
+
+# OS / Editor files
+.DS_Store
+.idea/
+.vscode/
