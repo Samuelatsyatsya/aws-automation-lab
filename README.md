@@ -77,6 +77,12 @@ chmod +x *.sh
 ./cleanup_resources.sh
 ```
 
+# Logging
+Scripts log messages with timestamps to both terminal and log files:
+
+create_ec2.log, create_s3_bucket.log, create_security_group.log, cleanup_resources.log, run_all.log
+
+
 ## Challenges Faced and Solutions
 **1. EC2 Instance ID parsing issue**
 
@@ -102,7 +108,7 @@ Problem: Scripts failed when AWS credentials were missing or invalid
 
 Solution: Added a check_prerequisites function in each script
 
-**5. Logging**
+Logging
 Scripts log messages with timestamps to both terminal and log files:
 
 create_ec2.log, create_s3_bucket.log, create_security_group.log, cleanup_resources.log, run_all.log
