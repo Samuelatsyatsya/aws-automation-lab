@@ -53,14 +53,22 @@ AWS CLI v2 installed and configured
 
 jq installed (sudo apt-get install -y jq)
 
+Bash shell
+
 Make scripts executable (optional):
 
+bash
+Copy code
 chmod +x *.sh
 Run all scripts in order:
 
+bash
+Copy code
 ./run_all.sh
 Clean up resources:
 
+bash
+Copy code
 ./cleanup_resources.sh
 Challenges Faced and Solutions
 EC2 Instance ID parsing issue
