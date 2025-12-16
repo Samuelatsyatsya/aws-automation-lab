@@ -64,7 +64,29 @@ cleanup_key_pairs() {
   done
 }
 
+# cleanup_s3_buckets() {
+#   log "Searching for S3 buckets with tag Project=$TAG_PROJECT..."
+
+#   BUCKETS=$(aws s3api list-buckets --query "Buckets[].Name" --output text)
+
+#   for BUCKET in $BUCKETS; do
+#     TAG=$(aws s3api get-bucket-tagging --bucket "$BUCKET" --query "TagSet[?Key=='Project'].Value" --output text 2>/dev/null || true)
+#     if [[ "$TAG" == "$TAG_PROJECT" ]]; then
+#       log "Deleting all objects in bucket: $BUCKET"
+#       aws s3 rm "s3://$BUCKET" --recursive
+#       log "Deleting bucket: $BUCKET"
+#       aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION"
+#     fi
+#   done
+# }
+
 cleanup_s3_buckets() {
+  # Install jq if not installed
+  if ! command -v jq >/dev/null 2>&1; then
+    log "jq not found. Installing jq..."
+    sudo apt-get update && sudo apt-get install -y jq
+  fi
+
   log "Searching for S3 buckets with tag Project=$TAG_PROJECT..."
 
   BUCKETS=$(aws s3api list-buckets --query "Buckets[].Name" --output text)
@@ -72,13 +94,34 @@ cleanup_s3_buckets() {
   for BUCKET in $BUCKETS; do
     TAG=$(aws s3api get-bucket-tagging --bucket "$BUCKET" --query "TagSet[?Key=='Project'].Value" --output text 2>/dev/null || true)
     if [[ "$TAG" == "$TAG_PROJECT" ]]; then
-      log "Deleting all objects in bucket: $BUCKET"
-      aws s3 rm "s3://$BUCKET" --recursive
+      log "Deleting all objects (including all versions) in bucket: $BUCKET"
+
+      # Delete all versions if versioning is enabled
+      VERSIONS=$(aws s3api list-object-versions --bucket "$BUCKET" --query 'Versions[].{Key:Key,VersionId:VersionId}' --output json)
+      if [[ "$VERSIONS" != "[]" ]]; then
+        for ROW in $(echo "$VERSIONS" | jq -c '.[]'); do
+          KEY=$(echo "$ROW" | jq -r '.Key')
+          VERSION_ID=$(echo "$ROW" | jq -r '.VersionId')
+          aws s3api delete-object --bucket "$BUCKET" --key "$KEY" --version-id "$VERSION_ID"
+        done
+      fi
+
+      # Delete all delete markers (also needed for versioned buckets)
+      DELETE_MARKERS=$(aws s3api list-object-versions --bucket "$BUCKET" --query 'DeleteMarkers[].{Key:Key,VersionId:VersionId}' --output json)
+      if [[ "$DELETE_MARKERS" != "[]" ]]; then
+        for ROW in $(echo "$DELETE_MARKERS" | jq -c '.[]'); do
+          KEY=$(echo "$ROW" | jq -r '.Key')
+          VERSION_ID=$(echo "$ROW" | jq -r '.VersionId')
+          aws s3api delete-object --bucket "$BUCKET" --key "$KEY" --version-id "$VERSION_ID"
+        done
+      fi
+
       log "Deleting bucket: $BUCKET"
       aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION"
     fi
   done
 }
+
 
 cleanup_security_groups() {
   log "Searching for security groups with tag Project=$TAG_PROJECT..."
