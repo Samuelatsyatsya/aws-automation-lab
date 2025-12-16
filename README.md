@@ -78,31 +78,31 @@ chmod +x *.sh
 ```
 
 ## Challenges Faced and Solutions
-**EC2 Instance ID parsing issue**
+**1. EC2 Instance ID parsing issue**
 
 Problem: Previous scripts were including log messages in the Instance ID
 
 Solution: Separated the run-instances output using --query 'Instances[0].InstanceId' --output text
 
-**S3 bucket deletion failure**
+**2. S3 bucket deletion failure**
 
 Problem: Versioned S3 buckets caused BucketNotEmpty errors
 
 Solution: Implemented deletion of all object versions and delete markers using jq
 
-**Script execution permissions**
+**3. Script execution permissions**
 
 Problem: Newly created scripts were not executable
 
 Solution: run_all.sh automatically checks and sets executable permissions
 
-**AWS credential validation**
+**4. AWS credential validation**
 
 Problem: Scripts failed when AWS credentials were missing or invalid
 
 Solution: Added a check_prerequisites function in each script
 
-**Logging**
+**5. Logging**
 Scripts log messages with timestamps to both terminal and log files:
 
 create_ec2.log, create_s3_bucket.log, create_security_group.log, cleanup_resources.log, run_all.log
