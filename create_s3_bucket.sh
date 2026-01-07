@@ -1,88 +1,73 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# CONFIGURATION
-
 LOG_FILE="create_s3_bucket.log"
-REGION="eu-central-1"
-BUCKET_NAME="automationlab-bucket-$(date +%s)"
-TAG_PROJECT="AutomationLab"
-SAMPLE_FILE="welcome.txt"
 
-# LOGGING FUNCTION
+# Configuration
+BUCKET_PREFIX="automationlab-bucket"
+SAMPLE_FILE="welcome.txt"
+PROJECT_TAG="AutomationLab"
+REGION=$(aws configure get region)
 
 log() {
-  # Logs messages with timestamp to terminal and log file (stderr-safe)
-  echo "$(date '+%Y-%m-%d %H:%M:%S') : $1" | tee -a "$LOG_FILE" >&2
+    local LEVEL="${2:-INFO}"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [$LEVEL] : $1" | tee -a "$LOG_FILE" >&2
 }
 
-
-# PREREQUISITES CHECK
+error_exit() {
+    log "$1" "ERROR"
+    exit 1
+}
 
 check_prerequisites() {
-  # Ensure AWS CLI is installed
-  if ! command -v aws >/dev/null 2>&1; then
-    log "ERROR: AWS CLI not installed."
-    exit 1
-  fi
-
-  # Ensure AWS credentials are valid
-  if ! aws sts get-caller-identity >/dev/null 2>&1; then
-    log "ERROR: AWS credentials not configured or invalid."
-    exit 1
-  fi
-
-  log "AWS CLI and credentials verified."
+    command -v aws >/dev/null 2>&1 || error_exit "AWS CLI not installed."
+    aws sts get-caller-identity >/dev/null 2>&1 || error_exit "AWS credentials not configured or invalid."
 }
 
+# ---------------- GENERIC RESOURCE ENSURER ----------------
+# For S3 bucket: check if bucket exists, create if not
+ensure_s3_bucket() {
+    local bucket_name="$1"
 
-# S3 FUNCTIONS
-create_bucket() {
-  log "Creating S3 bucket: $BUCKET_NAME"
+    EXISTS=$(aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null || true)
 
-  aws s3api create-bucket \
-    --bucket "$BUCKET_NAME" \
-    --region "$REGION" \
-    --create-bucket-configuration LocationConstraint="$REGION"
+    if [[ -z "$EXISTS" ]]; then
+        aws s3api create-bucket --bucket "$bucket_name" --region "$REGION" --create-bucket-configuration LocationConstraint="$REGION"
+        log "Created S3 bucket: $bucket_name"
 
-  log "S3 bucket created successfully."
+        # Tag bucket
+        aws s3api put-bucket-tagging --bucket "$bucket_name" \
+            --tagging "TagSet=[{Key=Project,Value=$PROJECT_TAG}]"
+        log "Tagged bucket: $bucket_name with Project=$PROJECT_TAG"
+
+        # Enable versioning
+        aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled
+        log "Enabled versioning on bucket: $bucket_name"
+
+        # Upload sample file
+        if [[ ! -f "$SAMPLE_FILE" ]]; then
+            echo "Welcome to Automation Lab!" > "$SAMPLE_FILE"
+        fi
+        aws s3 cp "$SAMPLE_FILE" "s3://$bucket_name/$SAMPLE_FILE"
+        log "Uploaded sample file to bucket: $bucket_name"
+    else
+        log "Bucket already exists: $bucket_name"
+    fi
 }
 
-enable_versioning() {
-  log "Enabling versioning on bucket: $BUCKET_NAME"
+main() {
+    log "Starting S3 bucket automation script"
 
-  aws s3api put-bucket-versioning \
-    --bucket "$BUCKET_NAME" \
-    --versioning-configuration Status=Enabled
+    check_prerequisites
+
+    # Make a unique bucket name
+    BUCKET_NAME="${BUCKET_PREFIX}-$(date +%s)"
+
+    ensure_s3_bucket "$BUCKET_NAME"
+
+    log "S3 bucket automation completed successfully"
+    echo
+    echo "Bucket Name: $BUCKET_NAME"
 }
 
-upload_sample_file() {
-  log "Uploading sample file to bucket."
-
-  echo "Welcome to the AutomationLab S3 bucket!" > "$SAMPLE_FILE"
-
-  aws s3 cp "$SAMPLE_FILE" "s3://$BUCKET_NAME/$SAMPLE_FILE"
-
-  log "Sample file uploaded: s3://$BUCKET_NAME/$SAMPLE_FILE"
-}
-
-tag_bucket() {
-  log "Tagging S3 bucket."
-
-  aws s3api put-bucket-tagging \
-    --bucket "$BUCKET_NAME" \
-    --tagging "TagSet=[{Key=Project,Value=$TAG_PROJECT}]"
-}
-
-# MAIN EXECUTION
-
-log "S3 Automation Script Started"
-
-check_prerequisites
-create_bucket
-enable_versioning
-tag_bucket
-upload_sample_file
-
-log "S3 Automation Script Completed"
-log "Bucket Name: $BUCKET_NAME"
+main
