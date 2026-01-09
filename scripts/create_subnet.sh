@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---------------- CONFIG ----------------
-LOG_FILE="./logs/create_subnet.log"
+LOG_FILE="./logs/create_sg.log"
 STATE_FILE="./state/state.json"
 mkdir -p ./logs ./state
 
@@ -24,92 +24,54 @@ save_state() {
 }
 
 # ---------------- START ----------------
-log "Starting VPC and Subnet setup"
+log "Starting Security Group setup"
 check_prerequisites
 
-REGION="${REGION:-us-east-1}"
-VPC_NAME="${VPC_NAME:-automationlab-vpc}"
-SUBNET_NAME="${SUBNET_NAME:-automationlab-public-subnet}"
-VPC_CIDR="${VPC_CIDR:-10.0.0.0/16}"
-SUBNET_CIDR="${SUBNET_CIDR:-10.0.1.0/24}"
-
-# ---------------- VPC ----------------
-VPC_ID=$(aws ec2 describe-vpcs \
-    --filters Name=tag:Name,Values="$VPC_NAME" \
-    --query 'Vpcs[0].VpcId' --output text --region "$REGION")
-
-if [[ "$VPC_ID" == "None" ]]; then
-    log "Creating VPC: $VPC_NAME"
-    VPC_ID=$(aws ec2 create-vpc --cidr-block "$VPC_CIDR" --query 'Vpc.VpcId' --output text --region "$REGION")
-    aws ec2 modify-vpc-attribute --vpc-id "$VPC_ID" --enable-dns-support --region "$REGION"
-    aws ec2 modify-vpc-attribute --vpc-id "$VPC_ID" --enable-dns-hostnames --region "$REGION"
-    aws ec2 create-tags --resources "$VPC_ID" --tags Key=Name,Value="$VPC_NAME" --region "$REGION"
-    log "Created VPC: $VPC_ID"
-else
-    log "VPC exists in AWS: $VPC_ID"
+# ---------------- VPC ID ----------------
+VPC_ID=$(jq -r '.vpc_id // empty' "$STATE_FILE")
+if [[ -z "$VPC_ID" ]]; then
+    log "[ERROR] VPC ID not found in state.json. Cannot create Security Group."
+    exit 1
 fi
-save_state "vpc_id" "$VPC_ID"
 
-# ---------------- SUBNET ----------------
-AZ=$(aws ec2 describe-availability-zones --query "AvailabilityZones[0].ZoneName" --output text --region "$REGION")
+# ---------------- SECURITY GROUP ----------------
+SG_NAME="${SG_NAME:-automationlab-sg}"
+PROJECT_TAG="${PROJECT_TAG:-automationlab}"
 
-SUBNET_ID=$(aws ec2 describe-subnets \
-    --filters Name=vpc-id,Values="$VPC_ID" Name=tag:Name,Values="$SUBNET_NAME" \
-    --query 'Subnets[0].SubnetId' --output text --region "$REGION")
+log "Checking if Security Group '$SG_NAME' exists in VPC $VPC_ID"
 
-if [[ "$SUBNET_ID" == "None" ]]; then
-    log "Creating Subnet: $SUBNET_NAME"
-    SUBNET_ID=$(aws ec2 create-subnet \
+SG_ID=$(aws ec2 describe-security-groups \
+    --filters Name=group-name,Values="$SG_NAME" Name=vpc-id,Values="$VPC_ID" \
+    --query 'SecurityGroups[0].GroupId' \
+    --output text \
+    --region "$REGION" 2>/dev/null || true)
+
+if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
+    log "Creating Security Group: $SG_NAME"
+    SG_ID=$(aws ec2 create-security-group \
+        --group-name "$SG_NAME" \
+        --description "Security group for $PROJECT_TAG EC2 instances" \
         --vpc-id "$VPC_ID" \
-        --cidr-block "$SUBNET_CIDR" \
-        --availability-zone "$AZ" \
-        --query 'Subnet.SubnetId' --output text --region "$REGION")
-    aws ec2 modify-subnet-attribute --subnet-id "$SUBNET_ID" --map-public-ip-on-launch --region "$REGION"
-    aws ec2 create-tags --resources "$SUBNET_ID" --tags Key=Name,Value="$SUBNET_NAME" --region "$REGION"
-    log "Created Subnet: $SUBNET_ID"
+        --query 'GroupId' \
+        --output text \
+        --region "$REGION")
+
+    # Example: allow SSH
+    aws ec2 authorize-security-group-ingress \
+        --group-id "$SG_ID" \
+        --protocol tcp \
+        --port 22 \
+        --cidr 0.0.0.0/0 \
+        --region "$REGION"
+
+    log "Created Security Group: $SG_ID"
 else
-    log "Subnet exists in AWS: $SUBNET_ID"
+    log "Security Group already exists: $SG_ID"
 fi
-save_state "subnet_id" "$SUBNET_ID"
 
-# ---------------- INTERNET GATEWAY ----------------
-IGW_ID=$(aws ec2 describe-internet-gateways \
-    --filters Name=attachment.vpc-id,Values="$VPC_ID" \
-    --query 'InternetGateways[0].InternetGatewayId' --output text --region "$REGION")
-
-if [[ "$IGW_ID" == "None" ]]; then
-    log "Creating Internet Gateway"
-    IGW_ID=$(aws ec2 create-internet-gateway --query 'InternetGateway.InternetGatewayId' --output text --region "$REGION")
-    aws ec2 attach-internet-gateway --internet-gateway-id "$IGW_ID" --vpc-id "$VPC_ID" --region "$REGION"
-    log "Created Internet Gateway: $IGW_ID"
-else
-    log "Internet Gateway exists in AWS: $IGW_ID"
-fi
-save_state "igw_id" "$IGW_ID"
-
-# ---------------- ROUTE TABLE ----------------
-RT_ID=$(aws ec2 describe-route-tables \
-    --filters Name=vpc-id,Values="$VPC_ID" \
-    --query 'RouteTables[?Routes[?DestinationCidrBlock==`0.0.0.0/0`]].RouteTableId | [0]' \
-    --output text --region "$REGION")
-
-if [[ "$RT_ID" == "None" ]]; then
-    log "Creating Route Table"
-    RT_ID=$(aws ec2 create-route-table --vpc-id "$VPC_ID" --query 'RouteTable.RouteTableId' --output text --region "$REGION")
-    aws ec2 create-route --route-table-id "$RT_ID" --destination-cidr-block 0.0.0.0/0 --gateway-id "$IGW_ID" --region "$REGION"
-    aws ec2 associate-route-table --route-table-id "$RT_ID" --subnet-id "$SUBNET_ID" --region "$REGION"
-    log "Created Route Table: $RT_ID"
-else
-    log "Route Table exists in AWS: $RT_ID"
-fi
-save_state "rt_id" "$RT_ID"
+# ---------------- SAVE STATE ----------------
+save_state "security_group_id" "$SG_ID"
 
 # ---------------- INFO ----------------
-log "VPC and Subnet setup completed"
-echo
-echo "VPC Name   : $VPC_NAME"
-echo "VPC ID     : $VPC_ID"
-echo "Subnet Name: $SUBNET_NAME"
-echo "Subnet ID  : $SUBNET_ID"
-echo "IGW ID     : $IGW_ID"
-echo "Route Table: $RT_ID"
+log "Security Group setup completed"
+echo "Security Group ID: $SG_ID"
