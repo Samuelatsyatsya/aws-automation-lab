@@ -1,7 +1,6 @@
 {
-  "create_subnet.sh": true,
-  "create_security_group.sh": true,
-  "s3_bucket_id": true,
-  "create_s3_bucket.sh": true,
-  "create_ec2.sh": true
+
+
+  "security_group_id": "",
+  "ec2_instance_id": ""
 }
