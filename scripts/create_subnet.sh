@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------- CONFIG ----------------
+# CONFIG
 LOG_FILE="./logs/create_sg.log"
 STATE_FILE="./state/state.json"
 mkdir -p ./logs ./state
@@ -23,18 +23,18 @@ save_state() {
     jq --arg k "$key" --arg v "$value" '.[$k]=$v' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 }
 
-# ---------------- START ----------------
+#START
 log "Starting Security Group setup"
 check_prerequisites
 
-# ---------------- VPC ID ----------------
+# VPC ID 
 VPC_ID=$(jq -r '.vpc_id // empty' "$STATE_FILE")
 if [[ -z "$VPC_ID" ]]; then
     log "[ERROR] VPC ID not found in state.json. Cannot create Security Group."
     exit 1
 fi
 
-# ---------------- SECURITY GROUP ----------------
+# SECURITY GROUP
 SG_NAME="${SG_NAME:-automationlab-sg}"
 PROJECT_TAG="${PROJECT_TAG:-automationlab}"
 
@@ -69,9 +69,9 @@ else
     log "Security Group already exists: $SG_ID"
 fi
 
-# ---------------- SAVE STATE ----------------
+# SAVE STATE
 save_state "security_group_id" "$SG_ID"
 
-# ---------------- INFO ----------------
+# INFO 
 log "Security Group setup completed"
 echo "Security Group ID: $SG_ID"
