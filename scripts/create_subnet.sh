@@ -2,12 +2,21 @@
 set -euo pipefail
 
 # ---------------- CONFIG ----------------
-REGION="${REGION:-us-east-1}"
-VPC_NAME="${VPC_NAME:-automationlab-vpc}"
-SUBNET_NAME="${SUBNET_NAME:-automationlab-public-subnet}"
-RT_NAME="${RT_NAME:-automationlab-public-rt}"
-VPC_CIDR="${VPC_CIDR:-10.0.0.0/16}"
-SUBNET_CIDR="${SUBNET_CIDR:-10.0.1.0/24}"
+
+: "${REGION:?REGION must be set (source env.sh)}"
+: "${VPC_NAME:?VPC_NAME must be set}"
+: "${SUBNET_NAME:?SUBNET_NAME must be set}"
+: "${RT_NAME:?RT_NAME must be set}"
+: "${VPC_CIDR:?VPC_CIDR must be set}"
+: "${SUBNET_CIDR:?SUBNET_CIDR must be set}"
+
+
+# REGION="${REGION:-us-east-1}"
+# VPC_NAME="${VPC_NAME:-automationlab-vpc}"
+# SUBNET_NAME="${SUBNET_NAME:-automationlab-public-subnet}"
+# RT_NAME="${RT_NAME:-automationlab-public-rt}"
+# VPC_CIDR="${VPC_CIDR:-10.0.0.0/16}"
+# SUBNET_CIDR="${SUBNET_CIDR:-10.0.1.0/24}"
 
 LOG_FILE="./logs/create_subnet.log"
 STATE_FILE="./state/state.json"
