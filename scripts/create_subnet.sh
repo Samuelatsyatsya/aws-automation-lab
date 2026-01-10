@@ -2,21 +2,12 @@
 set -euo pipefail
 
 # ---------------- CONFIG ----------------
-
 : "${REGION:?REGION must be set (source env.sh)}"
 : "${VPC_NAME:?VPC_NAME must be set}"
 : "${SUBNET_NAME:?SUBNET_NAME must be set}"
 : "${RT_NAME:?RT_NAME must be set}"
 : "${VPC_CIDR:?VPC_CIDR must be set}"
 : "${SUBNET_CIDR:?SUBNET_CIDR must be set}"
-
-
-# REGION="${REGION:-us-east-1}"
-# VPC_NAME="${VPC_NAME:-automationlab-vpc}"
-# SUBNET_NAME="${SUBNET_NAME:-automationlab-public-subnet}"
-# RT_NAME="${RT_NAME:-automationlab-public-rt}"
-# VPC_CIDR="${VPC_CIDR:-10.0.0.0/16}"
-# SUBNET_CIDR="${SUBNET_CIDR:-10.0.1.0/24}"
 
 LOG_FILE="./logs/create_subnet.log"
 STATE_FILE="./state/state.json"
@@ -27,8 +18,7 @@ mkdir -p ./logs ./state
 # ---------------- LOGGING ----------------
 log() {
   local msg="[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] : $*"
-  echo "$msg"
-  echo "$msg" >> "$LOG_FILE"
+  echo "$msg" | tee -a "$LOG_FILE"
 }
 
 # ---------------- STATE HELPERS ----------------
@@ -116,6 +106,7 @@ fi
 
 # ---------------- ROUTE TABLE ----------------
 RT_ID=$(get_state "rt_id")
+RT_ASSOC_ID=$(get_state "rt_assoc_id")
 
 if [[ -z "$RT_ID" ]]; then
   log "Creating Route Table"
@@ -132,13 +123,18 @@ if [[ -z "$RT_ID" ]]; then
     --gateway-id "$IGW_ID" \
     --region "$REGION"
 
-  aws ec2 associate-route-table \
+  RT_ASSOC_ID=$(aws ec2 associate-route-table \
     --route-table-id "$RT_ID" \
     --subnet-id "$SUBNET_ID" \
-    --region "$REGION"
+    --query 'AssociationId' \
+    --output text \
+    --region "$REGION")
 
   set_state "rt_id" "$RT_ID"
+  set_state "rt_assoc_id" "$RT_ASSOC_ID"
+
   log "Route Table created: $RT_ID"
+  log "Route Table associated (stored): $RT_ASSOC_ID"
 else
   log "Route Table exists in state: $RT_ID"
 fi
@@ -147,7 +143,8 @@ fi
 log "STATE-BASED VPC and Subnet setup completed"
 
 echo
-echo "VPC ID      : $VPC_ID"
-echo "Subnet ID   : $SUBNET_ID"
-echo "IGW ID      : $IGW_ID"
-echo "Route Table : $RT_ID"
+echo "VPC ID           : $VPC_ID"
+echo "Subnet ID        : $SUBNET_ID"
+echo "IGW ID           : $IGW_ID"
+echo "Route Table ID   : $RT_ID"
+echo "RT AssociationID : $RT_ASSOC_ID"
