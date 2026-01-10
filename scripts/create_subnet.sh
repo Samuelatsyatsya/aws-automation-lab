@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------- CONFIG ----------------
+#CONFIG
 : "${REGION:?REGION must be set (source env.sh)}"
 : "${VPC_NAME:?VPC_NAME must be set}"
 : "${SUBNET_NAME:?SUBNET_NAME must be set}"
@@ -15,13 +15,13 @@ STATE_FILE="./state/state.json"
 mkdir -p ./logs ./state
 [[ -f "$STATE_FILE" ]] || echo '{}' > "$STATE_FILE"
 
-# ---------------- LOGGING ----------------
+# LOGGING
 log() {
   local msg="[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] : $*"
   echo "$msg" | tee -a "$LOG_FILE"
 }
 
-# ---------------- STATE HELPERS ----------------
+# STATE HELPERS
 get_state() {
   jq -r --arg k "$1" '.[$k] // empty' "$STATE_FILE"
 }
@@ -33,10 +33,10 @@ set_state() {
   mv "$tmp" "$STATE_FILE"
 }
 
-# ---------------- START ----------------
+# START
 log "Starting STATE-BASED VPC & Subnet setup"
 
-# ---------------- VPC ----------------
+# VPC
 VPC_ID=$(get_state "vpc_id")
 
 if [[ -z "$VPC_ID" ]]; then
@@ -57,7 +57,7 @@ else
   log "VPC exists in state: $VPC_ID"
 fi
 
-# ---------------- INTERNET GATEWAY ----------------
+# INTERNET GATEWAY
 IGW_ID=$(get_state "igw_id")
 
 if [[ -z "$IGW_ID" ]]; then
@@ -79,7 +79,7 @@ else
   log "IGW exists in state: $IGW_ID"
 fi
 
-# ---------------- SUBNET ----------------
+# SUBNET
 SUBNET_ID=$(get_state "subnet_id")
 
 if [[ -z "$SUBNET_ID" ]]; then
@@ -104,7 +104,7 @@ else
   log "Subnet exists in state: $SUBNET_ID"
 fi
 
-# ---------------- ROUTE TABLE ----------------
+# ROUTE TABLE
 RT_ID=$(get_state "rt_id")
 RT_ASSOC_ID=$(get_state "rt_assoc_id")
 
@@ -137,9 +137,23 @@ if [[ -z "$RT_ID" ]]; then
   log "Route Table associated (stored): $RT_ASSOC_ID"
 else
   log "Route Table exists in state: $RT_ID"
+
+  # store association ID if missing
+  if [[ -z "$RT_ASSOC_ID" ]]; then
+    RT_ASSOC_ID=$(aws ec2 describe-route-tables \
+      --route-table-ids "$RT_ID" \
+      --query "RouteTables[0].Associations[?SubnetId=='$SUBNET_ID'].RouteTableAssociationId | [0]" \
+      --output text \
+      --region "$REGION")
+
+    if [[ -n "$RT_ASSOC_ID" && "$RT_ASSOC_ID" != "None" ]]; then
+      set_state "rt_assoc_id" "$RT_ASSOC_ID"
+      log "Stored existing Route Table Association: $RT_ASSOC_ID"
+    fi
+  fi
 fi
 
-# ---------------- DONE ----------------
+# DONE
 log "STATE-BASED VPC and Subnet setup completed"
 
 echo
