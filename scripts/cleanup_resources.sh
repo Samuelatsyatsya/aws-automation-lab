@@ -11,20 +11,8 @@ mkdir -p "$(dirname "$STATE_FILE")" "$(dirname "$LOG_FILE")"
 [[ -f "$STATE_FILE" ]] || { echo "{}" > "$STATE_FILE"; }
 
 
-# LOGGING
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] : $*" | tee -a "$LOG_FILE"
-}
-
-
-# STATE HELPERS
-get_state() {
-    jq -r --arg k "$1" '.[$k] // empty' "$STATE_FILE"
-}
-
-delete_state_key() {
-    jq "del(.$1)" "$STATE_FILE" > tmp.$$.json && mv tmp.$$.json "$STATE_FILE"
-}
+#SOURCE HELPERS
+source ./utils/aws_helper.sh
 
 delete_if_tracked() {
     local key="$1"
