@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # CONFIG (expects env.sh to be sourced)
+
 : "${REGION:?REGION must be set}"
 STATE_FILE="${STATE_FILE:-./state/state.json}"
 LOG_FILE="${LOG_FILE:-./logs/cleanup.log}"
@@ -40,18 +41,16 @@ delete_if_tracked() {
 
     log "Deleting $label: $resource_id"
 
-    # Replace placeholder __ID__ with actual ID
     local delete_cmd="${delete_cmd_template//__ID__/$resource_id}"
-
     eval "$delete_cmd"
+
     delete_state_key "$key"
 }
 
 
-# CLEANUP (Using STATE file)
+# CLEANUP (relying on STATE ONLY)
 cleanup_all_resources() {
     log "Starting STATE-ONLY cleanup"
-
 
     # EC2
     delete_if_tracked \
@@ -60,15 +59,13 @@ cleanup_all_resources() {
         "aws ec2 terminate-instances --instance-ids __ID__ --region $REGION && \
          aws ec2 wait instance-terminated --instance-ids __ID__ --region $REGION"
 
-
-    # SECURITY GROUP 
+    # SECURITY GROUP
     delete_if_tracked \
         "security_group_id" \
         "Security Group" \
         "aws ec2 delete-security-group --group-id __ID__ --region $REGION"
 
-
-    # ROUTE TABLE 
+    # ROUTE TABLE
     rt_id=$(get_state "rt_id")
     rt_assoc_id=$(get_state "rt_assoc_id")
 
@@ -97,8 +94,7 @@ cleanup_all_resources() {
         "Subnet" \
         "aws ec2 delete-subnet --subnet-id __ID__ --region $REGION"
 
-
-    # INTERNET GATEWAY 
+    # INTERNET GATEWAY
     igw_id=$(get_state "igw_id")
     vpc_id=$(get_state "vpc_id")
 
@@ -121,7 +117,21 @@ cleanup_all_resources() {
         log "No Internet Gateway found in state"
     fi
 
-    #  VPC
+    # S3 BUCKET
+    s3_bucket=$(get_state "s3_bucket_name")
+
+    if [[ -n "$s3_bucket" ]]; then
+        log "Deleting S3 Bucket: $s3_bucket"
+
+        aws s3 rm "s3://$s3_bucket" --recursive
+        aws s3 rb "s3://$s3_bucket"
+
+        delete_state_key "s3_bucket_name"
+    else
+        log "No S3 bucket found in state"
+    fi
+
+    # VPC
     delete_if_tracked \
         "vpc_id" \
         "VPC" \
@@ -131,5 +141,4 @@ cleanup_all_resources() {
 }
 
 # EXECUTE
-# --------------------------------------------------
 cleanup_all_resources
