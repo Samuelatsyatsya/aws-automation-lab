@@ -13,7 +13,7 @@ mkdir -p "$(dirname "$STATE_FILE")" "$(dirname "$LOG_FILE")"
 
 # LOGGING
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] : $*" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] : $*" | tee -a "$LOG_FILE"
 }
 
 
