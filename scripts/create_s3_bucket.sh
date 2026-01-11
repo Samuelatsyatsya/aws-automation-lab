@@ -12,23 +12,8 @@ STATE_FILE="./state/state.json"
 mkdir -p ./logs ./state
 [[ -f "$STATE_FILE" ]] || echo '{}' > "$STATE_FILE"
 
-# LOGGING
-log() {
-  local msg="[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] : $*"
-  echo "$msg" | tee -a "$LOG_FILE"
-}
-
-# STATE HELPERS
-get_state() {
-  jq -r --arg k "$1" '.[$k] // empty' "$STATE_FILE"
-}
-
-set_state() {
-  local tmp
-  tmp=$(mktemp)
-  jq --arg k "$1" --arg v "$2" '.[$k]=$v' "$STATE_FILE" > "$tmp"
-  mv "$tmp" "$STATE_FILE"
-}
+#SOURCE HELPERS
+source ./utils/aws_helper.sh
 
 # START
 log "Starting STATE-BASED S3 bucket setup"
