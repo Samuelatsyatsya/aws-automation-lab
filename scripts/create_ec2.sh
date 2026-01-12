@@ -8,6 +8,10 @@ KEY_DIR="./keys"
 
 mkdir -p ./logs "$KEY_DIR"
 
+
+
+#SOURCE HELPERS
+source ./utils/aws_helper.sh
 check_prerequisites
 
 log "Starting EC2 instance setup"
