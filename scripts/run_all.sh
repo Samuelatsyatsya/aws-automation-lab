@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------- CONFIGURATION ----------------
+# CONFIGURATION
 LOG_DIR="./logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/run_all.log"
@@ -11,7 +11,7 @@ mkdir -p "$STATE_DIR"
 STATE_FILE="$STATE_DIR/state.json"
 [[ ! -f "$STATE_FILE" ]] && echo "{}" > "$STATE_FILE"
 
-# ---------------- LOAD ENV & HELPERS ----------------
+# LOAD ENV & HELPERS
 if [[ -f "./config/aws_env.sh" ]]; then
     source ./config/aws_env.sh
 else
@@ -26,33 +26,28 @@ else
     exit 1
 fi
 
-# ---------------- STATE FUNCTIONS ----------------
+# STATE FUNCTIONS
 is_done() {
-    local script_name="$1"
-    jq -e --arg s "$script_name" '.[$s] == true' "$STATE_FILE" >/dev/null 2>&1
+    local key="$1"
+    jq -e --arg k "$key" '.[$k] == true' "$STATE_FILE" >/dev/null 2>&1
 }
 
 mark_done() {
-    local script_name="$1"
-    tmp=$(mktemp)
-    jq --arg s "$script_name" '.[$s]=true' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
-}
-
-get_state() {
     local key="$1"
-    jq -r --arg k "$key" '.[$k] // empty' "$STATE_FILE"
-}
-
-update_state() {
-    local key="$1"
-    local value="$2"
+    local tmp
     tmp=$(mktemp)
-    jq --arg k "$key" --arg v "$value" '.[$k]=$v' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+    jq --arg k "$key" '.[$k] = true' "$STATE_FILE" > "$tmp"
+    mv "$tmp" "$STATE_FILE"
 }
 
-# ---------------- SCRIPT RUNNER ----------------
+# SCRIPT RUNNER
 SCRIPT_DIR="./scripts"
-SCRIPTS=("create_subnet.sh" "create_security_group.sh" "create_s3_bucket.sh" "create_ec2.sh")
+SCRIPTS=(
+    "create_subnet.sh"
+    "create_security_group.sh"
+    "create_s3_bucket.sh"
+    "create_ec2.sh"
+)
 
 run_script() {
     local script_name="$1"
@@ -71,8 +66,7 @@ run_script() {
     chmod +x "$script_path"
     echo "[INFO] Executing $script_path..."
 
-    # Run in current shell so helper functions and state are accessible
-    if ! source "$script_path"; then
+    if ! bash "$script_path"; then
         echo "ERROR: $script_path failed. Aborting orchestration."
         exit 1
     fi
@@ -81,7 +75,7 @@ run_script() {
     mark_done "$script_name"
 }
 
-# ---------------- MAIN ----------------
+# MAIN
 echo "[INFO] Automation Orchestrator Script Started"
 
 for SCRIPT in "${SCRIPTS[@]}"; do
