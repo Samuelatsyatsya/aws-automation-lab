@@ -1,32 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# CONFIGURATION
+
+#SOURCE HELPERS
+source ./utils/aws_helper.sh
+
+# Directories and files
 LOG_DIR="./logs"
-mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/run_all.log"
 
-STATE_DIR="./state"
-mkdir -p "$STATE_DIR"
-STATE_FILE="$STATE_DIR/state.json"
-[[ ! -f "$STATE_FILE" ]] && echo "{}" > "$STATE_FILE"
 
-# LOAD ENV & HELPERS
-if [[ -f "./config/aws_env.sh" ]]; then
-    source ./config/aws_env.sh
-else
-    echo "ERROR: aws_env.sh not found"
-    exit 1
-fi
+# Load environment and helper scripts
+: "${AWS_ENV_FILE:=./config/aws_env.sh}"
+: "${AWS_HELPER_FILE:=./utils/aws_helper.sh}"
 
-if [[ -f "./utils/aws_helper.sh" ]]; then
-    source ./utils/aws_helper.sh
-else
-    echo "ERROR: aws_helper.sh not found"
-    exit 1
-fi
+[[ -f "$AWS_ENV_FILE" ]] && source "$AWS_ENV_FILE" || { echo "ERROR: $AWS_ENV_FILE not found"; exit 1; }
+[[ -f "$AWS_HELPER_FILE" ]] && source "$AWS_HELPER_FILE" || { echo "ERROR: $AWS_HELPER_FILE not found"; exit 1; }
 
-# STATE FUNCTIONS
+: "${STATE_HELPER:=./state/state_io.sh}"
+: "${LOCK_HELPER:=./state/lock.sh}"
+
+[[ -f "$STATE_HELPER" ]] && source "$STATE_HELPER" || { echo "ERROR: $STATE_HELPER not found"; exit 1; }
+[[ -f "$LOCK_HELPER" ]] && source "$LOCK_HELPER" || { echo "ERROR: $LOCK_HELPER not found"; exit 1; }
+
+# State tracking functions
 is_done() {
     local key="$1"
     jq -e --arg k "$key" '.[$k] == true' "$STATE_FILE" >/dev/null 2>&1
@@ -40,7 +37,7 @@ mark_done() {
     mv "$tmp" "$STATE_FILE"
 }
 
-# SCRIPT RUNNER
+# Scripts to run
 SCRIPT_DIR="./scripts"
 SCRIPTS=(
     "create_subnet.sh"
@@ -49,37 +46,44 @@ SCRIPTS=(
     "create_ec2.sh"
 )
 
+# Function to run each script
 run_script() {
     local script_name="$1"
     local script_path="$SCRIPT_DIR/$script_name"
 
-    if [[ ! -f "$script_path" ]]; then
-        echo "ERROR: $script_path not found"
-        exit 1
-    fi
+    [[ -f "$script_path" ]] || { log "ERROR: $script_path not found"; exit 1; }
 
     if is_done "$script_name"; then
-        echo "[INFO] Skipping $script_name (already completed)"
+        log "[INFO] Skipping $script_name (already completed)"
         return
     fi
 
     chmod +x "$script_path"
-    echo "[INFO] Executing $script_path..."
+    log "[INFO] Executing $script_path..."
 
     if ! bash "$script_path"; then
-        echo "ERROR: $script_path failed. Aborting orchestration."
+        log "ERROR: $script_path failed. Aborting."
         exit 1
     fi
 
-    echo "[INFO] $script_path completed successfully."
+    log "[INFO] $script_path completed successfully."
     mark_done "$script_name"
 }
 
-# MAIN
-echo "[INFO] Automation Orchestrator Script Started"
+# Main orchestration
+log "[INFO] Automation Orchestrator Started"
 
+# Acquire lock and download state
+trap release_lock EXIT
+acquire_lock
+download_state
+
+# Run scripts in order
 for SCRIPT in "${SCRIPTS[@]}"; do
     run_script "$SCRIPT"
 done
 
-echo "[INFO] Automation Orchestrator Script Completed Successfully"
+# Upload updated state
+upload_state
+
+echo "Automation Orchestrator Completed Successfully"
