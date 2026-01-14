@@ -24,18 +24,18 @@ LOG_FILE="$LOG_DIR/run_all.log"
 [[ -f "$LOCK_HELPER" ]] && source "$LOCK_HELPER" || { echo "ERROR: $LOCK_HELPER not found"; exit 1; }
 
 # State tracking functions
-is_done() {
-    local key="$1"
-    jq -e --arg k "$key" '.[$k] == true' "$STATE_FILE" >/dev/null 2>&1
-}
+# is_done() {
+#     local key="$1"
+#     jq -e --arg k "$key" '.[$k] == true' "$STATE_FILE" >/dev/null 2>&1
+# }
 
-mark_done() {
-    local key="$1"
-    local tmp
-    tmp=$(mktemp)
-    jq --arg k "$key" '.[$k] = true' "$STATE_FILE" > "$tmp"
-    mv "$tmp" "$STATE_FILE"
-}
+# mark_done() {
+#     local key="$1"
+#     local tmp
+#     tmp=$(mktemp)
+#     jq --arg k "$key" '.[$k] = true' "$STATE_FILE" > "$tmp"
+#     mv "$tmp" "$STATE_FILE"
+# }
 
 # Scripts to run
 SCRIPT_DIR="./scripts"
@@ -53,10 +53,10 @@ run_script() {
 
     [[ -f "$script_path" ]] || { log "ERROR: $script_path not found"; exit 1; }
 
-    if is_done "$script_name"; then
-        log "[INFO] Skipping $script_name (already completed)"
-        return
-    fi
+    # if is_done "$script_name"; then
+    #     log "[INFO] Skipping $script_name (already completed)"
+    #     return
+    # fi
 
     chmod +x "$script_path"
     log "[INFO] Executing $script_path..."
@@ -67,7 +67,7 @@ run_script() {
     fi
 
     log "[INFO] $script_path completed successfully."
-    mark_done "$script_name"
+    # mark_done "$script_name"
 }
 
 # Main orchestration
