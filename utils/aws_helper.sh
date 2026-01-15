@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------------------------------------
-# AWS Helpers: logging, prerequisites, unified ensures
-# ---------------------------------------------
-
-# ---------------- CONFIGURATION ----------------
+# Configuration
 LOG_FILE="${LOG_FILE:-./logs/aws_helper.log}"
-STATE_FILE="${STATE_FILE:-./state/state.json}"
-REGION="${REGION:-$(aws configure get region)}"
-PROJECT_TAG="${PROJECT_TAG:-AutomationLab}"
+
+source ./config/aws_env.sh
 
 mkdir -p "$(dirname "$LOG_FILE")"
 
@@ -23,20 +18,19 @@ error_exit() {
     exit 1
 }
 
-# ---------------- PREREQUISITES ----------------
+# Check prerequisites
 check_prerequisites() {
     command -v aws >/dev/null 2>&1 || { log "Installing AWS CLI..."; sudo apt-get update && sudo apt-get install -y awscli; }
     command -v jq >/dev/null 2>&1 || { log "Installing jq..."; sudo apt-get update && sudo apt-get install -y jq; }
     aws sts get-caller-identity >/dev/null 2>&1 || error_exit "AWS credentials not configured or invalid."
 }
 
-
-# ---------------- LOGGING ----------------
+# Logging
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] : $*" | tee -a "$LOG_FILE"
 }
 
-# ---------------- STATE HELPERS ----------------
+# State helpers
 get_state() {
     jq -r --arg k "$1" '.[$k] // empty' "$STATE_FILE"
 }
@@ -48,12 +42,12 @@ set_state() {
     mv "$tmp" "$STATE_FILE"
 }
 
-# ---------------- DELETE STATE KEY ----------------
+# Delete state key
 delete_state_key() {
     jq "del(.$1)" "$STATE_FILE" > tmp.$$.json && mv tmp.$$.json "$STATE_FILE"
 }
 
-# ---------------- DELETE IF TRACKED ----------------
+# Delete resource if tracked in state
 delete_if_tracked() {
     local key="$1"
     local label="$2"
@@ -69,9 +63,24 @@ delete_if_tracked() {
 
     log "Deleting $label: $resource_id"
 
-    # Replace placeholder __ID__ with actual ID
     local delete_cmd="${delete_cmd_template//__ID__/$resource_id}"
 
     eval "$delete_cmd"
     delete_state_key "$key"
+}
+
+#bash plan
+bash_plan() {
+    local resource_type="$1"
+    local description="$2"
+    local cmd="${3:-}"
+
+    if [[ "${BASH_PLAN:-false}" == "true" ]]; then
+        log "[BASH PLAN] Create $resource_type: $description"
+    else
+        # Execute the command if provided
+        if [[ -n "$cmd" ]]; then
+            eval "$cmd"
+        fi
+    fi
 }
