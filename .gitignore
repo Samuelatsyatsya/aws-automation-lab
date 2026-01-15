@@ -13,6 +13,7 @@ config
 *.log
 *.txt
 *.zip
+*.env
 
 # Temporary / backup files
 *~
@@ -23,3 +24,5 @@ config
 .DS_Store
 .idea/
 .vscode/
+*/state.json
+state.json
